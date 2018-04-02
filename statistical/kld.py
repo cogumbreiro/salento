@@ -72,7 +72,7 @@ def main():
             for l, k in sorted(klds, key=lambda x: -x[1]):
                 print('  {:35s} : {:.2f}'.format(l, k))
 
-    print('Not in vocab: {}'.format(kld.not_in_vocab))
+    if len(kld.not_in_vocab) > 0: print('Not in vocab:', ", ".join(map(repr, kld.not_in_vocab)))
     print('Time taken: {}'.format(datetime.now() - start))
 
 class KLD():
