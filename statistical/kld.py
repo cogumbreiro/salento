@@ -135,7 +135,7 @@ class KLD():
     def compute(self, l, pack):
         seqs_l = list(self.parser.sequences(pack, l))
         if len(seqs_l) == 0:
-            raise -3. # empty list
+            return -3. # empty list
         samples = [sample(seqs_l, nsamples=1) for i in range(self.args.num_iters)]
         bow = set((event['call'], event['location'] if self.args.location_sensitive else None)
                 for seq in samples for event in seq)
