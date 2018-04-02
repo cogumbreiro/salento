@@ -82,8 +82,8 @@ class KLD():
             self.chars, self.vocab = pickle.load(f)
 
         self.model = Model(saved_args, True)
-        tf.initialize_all_variables().run()
-        saver = tf.train.Saver(tf.all_variables())
+        tf.global_variables_initializer().run()
+        saver = tf.train.Saver(tf.global_variables()) #tf.all_variables
         ckpt = tf.train.get_checkpoint_state(args.save_dir)
         if ckpt and ckpt.model_checkpoint_path:
             saver.restore(self.sess, ckpt.model_checkpoint_path)
