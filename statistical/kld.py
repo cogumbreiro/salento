@@ -64,7 +64,8 @@ def main():
         kld = KLD(args, parser, sess)
         filter_unknown_vocabs(parser.json_data, set(kld.vocab.keys()))
         for pack in parser.packages:
-            locations = parser.locations(pack)
+            locations = list(set(package_last_locations(pack)))
+            locations.sort() # make it deterministic
             print('### ' + pack['name'])
             log.debug('\n### ' + pack['name'])
             klds = [(l, kld.compute(l, pack)) for l in locations]
