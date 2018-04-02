@@ -143,7 +143,7 @@ class KLD():
         not_in_vocab = [call for (call, _) in bow if call not in self.vocab]
         if not not_in_vocab == []:
             self.not_in_vocab += list(set(not_in_vocab) - set(self.not_in_vocab))
-            return -1.
+            return -1. # elems not in vocab
 
         log.debug('\n' + l)
         triple_sample = [(samples[i], # for each sample, sample num_samples_seqs samples from seqs_l
