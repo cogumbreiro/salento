@@ -47,7 +47,7 @@ def main():
     if args.seed is None:
         args.seed = int(time.time())
     random.seed(args.seed)
-    print(args)
+
     if args.debug:
         log.basicConfig(level=log.DEBUG, filename='debug.log', filemode='w', format='%(message)s')
     start = datetime.now()
