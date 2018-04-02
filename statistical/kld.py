@@ -96,7 +96,7 @@ class KLD():
         Q = sum(self.reference(seq, topic) for topic in topics) / len(topics)
         return (np.log(P) - np.log(Q)
                 - self.sequence_bias(seq, seqs)
-                - self.topic_bias(topics)) if P > 0 else 0
+                - self.topic_bias(topics)) if P > 0 and Q > 0 else 0
 
     def reference(self, seq, topic):
         """ Compute the reference probability of a sequence given a topic """
