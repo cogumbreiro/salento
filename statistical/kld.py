@@ -127,7 +127,7 @@ class KLD():
         return -var / 2.
 
     def compute(self, l, pack):
-        seqs_l = self.parser.sequences(pack, l)
+        seqs_l = list(self.parser.sequences(pack, l))
         samples = [sample(seqs_l, nsamples=1) for i in range(self.args.num_iters)]
         bow = set([(event['call'], event['location'] if self.args.location_sensitive else None)
                 for seq in samples for event in seq])

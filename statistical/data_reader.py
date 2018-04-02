@@ -56,9 +56,8 @@ class JsonParser():
     def sequences(self, package, location=None):
         """ Get all sequences in package. If location is given, then get all
             sequences in package that end at location."""
-        seqs = []
         for data_point in package['data']:
             seq = data_point['sequence']
             if location is None or seq[-1]['location'] == location:
-                seqs.append(seq)
-        return seqs
+                yield seq
+
