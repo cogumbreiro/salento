@@ -19,6 +19,7 @@ import os
 import logging as log
 import time
 import pickle
+from filter_unknown import filter_unknown_vocabs
 from utils import sample
 from datetime import datetime
 from data_reader import JsonParser
@@ -58,6 +59,7 @@ def main():
             parser = JsonParser(data)
 
         kld = KLD(args, parser, sess)
+        filter_unknown_vocabs(parser.json_data, set(kld.vocab.keys()))
         for pack in parser.packages:
             locations = parser.locations(pack)
             print('### ' + pack['name'])
