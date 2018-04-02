@@ -135,8 +135,8 @@ class KLD():
     def compute(self, l, pack):
         seqs_l = list(self.parser.sequences(pack, l))
         samples = [sample(seqs_l, nsamples=1) for i in range(self.args.num_iters)]
-        bow = set([(event['call'], event['location'] if self.args.location_sensitive else None)
-                for seq in samples for event in seq])
+        bow = set((event['call'], event['location'] if self.args.location_sensitive else None)
+                for seq in samples for event in seq)
         lda_data = [';'.join([call for (call, _) in bow if not call == 'TERMINAL'])]
         not_in_vocab = [call for (call, _) in bow if call not in self.vocab]
         if not not_in_vocab == []:
