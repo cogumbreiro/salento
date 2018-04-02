@@ -26,6 +26,9 @@ from data_reader import JsonParser
 from model import Model
 from lda import LDA
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 def main():
     argparser = argparse.ArgumentParser()
     argparser.add_argument('data_file', type=str, nargs=1,
