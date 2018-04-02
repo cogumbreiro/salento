@@ -93,7 +93,7 @@ class KLD():
 
     def inner_sum(self, seq, seqs, topics):
         P = float(seqs.count(seq)) / len(seqs)
-        Q = sum([self.reference(seq, topic) for topic in topics]) / len(topics)
+        Q = sum(self.reference(seq, topic) for topic in topics) / len(topics)
         return (np.log(P) - np.log(Q)
                 - self.sequence_bias(seq, seqs)
                 - self.topic_bias(topics)) if P > 0 else 0
