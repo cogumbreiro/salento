@@ -48,10 +48,8 @@ class JsonParser():
         return [START] + list(itertools.chain(*s)) + [END]
 
     def locations(self, package):
-        locations = [event['location'] for data_point in package['data']
-                        for event in data_point['sequence']]
-        uniq = set()
-        return [l for l in locations if not (l in uniq or uniq.add(l))]
+        return (event['location'] for data_point in package['data']
+                        for event in data_point['sequence'])
 
     def sequences(self, package, location=None):
         """ Get all sequences in package. If location is given, then get all
