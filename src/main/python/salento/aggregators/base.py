@@ -13,7 +13,12 @@
 # limitations under the License.
 
 from __future__ import print_function
-import json
+import warnings
+try:
+    import ujson as json
+except ImportError:
+    warnings.warn("Python package 'ujson' not found. Install 'ujson' to load JSON files faster.")
+    import json
 import tensorflow as tf
 import random
 
