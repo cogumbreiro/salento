@@ -47,7 +47,7 @@ class Aggregator(object):
     def __enter__(self):
         self.log('Loading model...', end='')
         self.sess = tf.Session()
-        self.model = BayesianPredictor(self._model_dir, self.sess)
+        self.model = BayesianPredictor.load(self._model_dir, self.sess)
         self.log('done')
 
         self.log('Loading data...', end='')

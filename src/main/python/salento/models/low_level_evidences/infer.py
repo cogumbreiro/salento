@@ -76,17 +76,25 @@ class VectorMapping:
     def __repr__(self):
         return repr(dict(self.items()))
 
-class BayesianPredictor(object):
+class BayesianPredictor:
 
-    def __init__(self, save, sess):
-        self.sess = sess
-
+    @classmethod
+    def load(cls, save, sess):
         # load the saved config
         with open(os.path.join(save, 'config.json')) as f:
             config = read_config(json.load(f), chars_vocab=True)
-        self.model = Model(config, True)
+        pred = cls(sess=sess, model=Model(config, True))
+        pred.restore(save)
+        return pred
 
-        # restore the saved model
+    def __init__(self, model, sess):
+        self.model = model
+        self.sess = sess
+
+    def restore(self, save):
+        """
+        Restore the saved model
+        """
         self.sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver(tf.global_variables())
         ckpt = tf.train.get_checkpoint_state(save)
