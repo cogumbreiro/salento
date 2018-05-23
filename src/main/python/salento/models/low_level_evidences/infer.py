@@ -40,6 +40,18 @@ def _next_state(event):
 def _next_call(event):
     return (event['call'], SIBLING_EDGE)
 
+def _sequence_to_graph(sequence, step='call'):
+    # XXX: this function is always only used with step=='call'
+    seq = [('START', CHILD_EDGE)] + [_next_call(call) for call in sequence[:-1]]
+    if len(sequence) > 0:
+        if step == 'call':
+            seq.append(_next_call(sequence[-1]))
+        elif step == 'state':
+            seq.extend(_next_state(sequence[-1]))
+        else:
+            raise ValueError('invalid step: {}'.format(step))
+    return seq
+
 class VectorMapping:
     def __init__(self, data, id_to_term, term_to_id):
         self.data = data
@@ -100,25 +112,14 @@ class BayesianPredictor:
         ckpt = tf.train.get_checkpoint_state(save)
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
-    def _sequence_to_graph(self, sequence, step='call'):
-        seq = [('START', CHILD_EDGE)] + [_next_call(call) for call in sequence[:-1]]
-        if len(sequence) > 0:
-            if step == 'call':
-                seq.append(_next_call(sequence[-1]))
-            elif step == 'state':
-                seq.extend(_next_state(sequence[-1]))
-            else:
-                raise ValueError('invalid step: {}'.format(step))
-        return seq
-
     # step can be 'call' or 'state', depending on if you are looking for distribution over the next call/state
     def infer_step(self, psi, sequence, step='call', cache=None):
-        seq = self._sequence_to_graph(sequence, step)
+        seq = _sequence_to_graph(sequence, step)
         dist = self.model.infer_seq(self.sess, psi, seq, cache=cache)
         return self._create_distribution(dist)
 
     def infer_step_iter(self, psi, sequence, step='call', cache=None):
-        seq = self._sequence_to_graph(sequence=sequence, step='call')
+        seq = _sequence_to_graph(sequence=sequence, step='call')
         states = []
         for idx, row in enumerate(self.model.infer_seq_iter(self.sess, psi, seq, cache=cache)):
             def next_state():
