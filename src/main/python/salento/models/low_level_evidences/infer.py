@@ -41,8 +41,8 @@ def _next_call(event):
     return (event['call'], SIBLING_EDGE)
 
 def _sequence_to_graph(sequence, step='call'):
-    # XXX: this function is always only used with step=='call'
-    seq = [('START', CHILD_EDGE)] + [_next_call(call) for call in sequence[:-1]]
+    seq = [('START', CHILD_EDGE)]
+    seq.extend(_next_call(call) for call in sequence[:-1])
     if len(sequence) > 0:
         if step == 'call':
             seq.append(_next_call(sequence[-1]))
