@@ -133,6 +133,7 @@ class BayesianPredictor:
                 )
 
             if step == 'state' and idx < len(sequence):
+                states = []
                 call = sequence[idx]
                 new_seq = list(_next_state(call))
                 dists = self.model.infer_seq_iter(self.sess, psi, new_seq, cache=cache, resume=row)
