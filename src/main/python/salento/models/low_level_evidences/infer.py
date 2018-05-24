@@ -23,7 +23,7 @@ from salento.models.low_level_evidences.model import Model
 from salento.models.low_level_evidences.utils import CHILD_EDGE, SIBLING_EDGE
 from salento.models.low_level_evidences.utils import read_config
 
-from collections import namedtuple    
+from collections import namedtuple
 
 Row = namedtuple('Row', ['call', 'states', 'distribution', 'next_state'])
 
@@ -152,3 +152,49 @@ class BayesianPredictor:
 
     def psi_from_evidence(self, js_evidences):
         return self.model.infer_psi(self.sess, js_evidences)
+
+    def infer_state_iter_ex(self, psi, sequence, cache=None, sentinel=None):
+        """
+        Yields a sequence of sequences (which we call rows).
+
+        The length of output sequence has one more element than the input
+        sequence (the sentinel).
+
+        Each row pairs a call name and a distribution probability.
+        Each row contains the distribution probability of each state and
+        is terminated with a sentinel.
+        """
+        sequence = list(sequence)
+        seq = _sequence_to_graph(sequence=sequence, step='call')
+        r_call_names = list(x['call'] for x in sequence)
+        r_call_names.append(sentinel)
+
+        states = None
+
+        r_dist = []
+        r_states = []
+        for idx, row in enumerate(self.model.infer_seq_iter(self.sess, psi, seq, cache=cache)):
+            r_dist.append(self._create_distribution(row.distribution))
+
+            new_states = []
+
+            if idx < len(sequence):
+                call = sequence[idx]
+                new_seq = list(_next_state(call))
+                dists = self.model.infer_seq_iter(self.sess, psi, new_seq, cache=cache, resume=row)
+                for (key, entry) in zip(list(event_states(call)) + [None], dists):
+                    dist = self._create_distribution(entry.distribution)
+                    if key is None:
+                        new_states.append((sentinel, dist))
+                    else:
+                        new_states.append((key, dist))
+
+
+            r_states.append(new_states)
+
+
+        for name, dist, r in zip(r_call_names, r_dist, r_states):
+            l = [(name, dist)]
+            l.extend(r)
+            yield l
+

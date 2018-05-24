@@ -19,6 +19,12 @@ from salento.aggregators.base import Aggregator
 import itertools
 from operator import itemgetter
 
+def low_pass(x, lower_bound):
+    return x if x > lower_bound else lower_bound
+
+def low_pass_log(x, lower_bound=1e-40):
+    return math.log(low_pass(x, lower_bound))
+
 class KLDAggregator(Aggregator):
 
     """
@@ -37,19 +43,9 @@ class KLDAggregator(Aggregator):
 
     def log_likelihood(self, spec, sequence):
         llh = 0.
-        events = self.events(sequence)
-        calls = list(s['call'] for s in events)
-        calls.append(self.END_MARKER)
-        
-        for (row, next_call) in zip(self.distribution_state_iter(spec, events, cache=self.cache), calls):
-            llh += math.log(row.distribution[next_call])
-            for prob in row.states:
-                llh += math.log(prob)
-
-            if next_call != self.END_MARKER:
-                dist = row.next_state()
-                llh += math.log(dist[self.END_MARKER])
-
+        for row in self.model.infer_state_iter_ex(spec, self.events(sequence), cache=self.cache, sentinel=self.END_MARKER):
+            for call, dist in row:
+                llh += low_pass_log(dist[call])
         return llh
 
     def compute_kld(self, spec, sequences):
