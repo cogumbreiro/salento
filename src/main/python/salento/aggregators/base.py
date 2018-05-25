@@ -90,7 +90,7 @@ class Aggregator(object):
         :param call: if given, return the probability of this call instead of the whole distribution
         :return: an iterator that yields at each point the distribution of the next calls
         """
-        return self.model.infer_step_iter(spec, sequence, step='call', cache=cache)
+        return self.model.infer_call_iter(spec, sequence, cache=cache, sentinel=self.END_MARKER)
 
     def distribution_state_iter(self, spec, sequence, cache=None):
         """
@@ -100,7 +100,7 @@ class Aggregator(object):
         :param call: if given, return the probability of this call instead of the whole distribution
         :return: an iterator that yields at each point the distribution of the next calls
         """
-        return self.model.infer_step_iter(spec, sequence, step='state', cache=cache)
+        return self.model.infer_state_iter(spec, sequence, cache=cache, sentinel=self.END_MARKER)
 
     def distribution_next_state(self, spec, sequence, state=None, cache=None):
         """

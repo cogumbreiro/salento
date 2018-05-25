@@ -43,7 +43,7 @@ class KLDAggregator(Aggregator):
 
     def log_likelihood(self, spec, sequence):
         llh = 0.
-        for row in self.model.infer_state_iter_ex(spec, self.events(sequence), cache=self.cache, sentinel=self.END_MARKER):
+        for row in self.distribution_state_iter(spec, self.events(sequence), cache=self.cache):
             for call, dist in row:
                 llh += low_pass_log(dist[call])
         return llh

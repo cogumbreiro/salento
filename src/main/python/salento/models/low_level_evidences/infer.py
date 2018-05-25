@@ -27,6 +27,8 @@ from collections import namedtuple
 
 Row = namedtuple('Row', ['call', 'states', 'distribution', 'next_state'])
 
+Entry = namedtuple('Entry', ['term', 'distribution'])
+
 def event_states(call):
     for i, elem in enumerate(call['states']):
         key = '{}#{}'.format(i, elem)
@@ -51,6 +53,10 @@ def _sequence_to_graph(sequence, step='call'):
         else:
             raise ValueError('invalid step: {}'.format(step))
     return seq
+
+def _call_names(terms, sentinel):
+    yield from (x['call'] for x in terms)
+    yield sentinel
 
 class VectorMapping:
     def __init__(self, data, id_to_term, term_to_id):
@@ -153,7 +159,20 @@ class BayesianPredictor:
     def psi_from_evidence(self, js_evidences):
         return self.model.infer_psi(self.sess, js_evidences)
 
-    def infer_state_iter_ex(self, psi, sequence, cache=None, sentinel=None):
+    def infer_call_iter(self, psi, sequence, cache=None, sentinel=None):
+        """
+        Yields a sequence that pairs the next call sequence (terminated by the
+        given from a sentinel) and the probability distribution.
+        """
+        sequence = list(sequence) # cache the terms
+        seq = _sequence_to_graph(sequence=sequence, step='call')
+        r_call_names = _call_names(sequence, sentinel)
+        r_dist = (self._create_distribution(row.distribution) \
+            for row in self.model.infer_seq_iter(self.sess, psi, seq, cache=cache))
+        return (Entry(n,d) for (n,d) in zip(r_call_names, r_dist))
+
+
+    def infer_state_iter(self, psi, sequence, cache=None, sentinel=None):
         """
         Yields a sequence of sequences (which we call rows).
 
@@ -163,16 +182,17 @@ class BayesianPredictor:
         Each row pairs a call name and a distribution probability.
         Each row contains the distribution probability of each state and
         is terminated with a sentinel.
+
         """
         sequence = list(sequence)
         seq = _sequence_to_graph(sequence=sequence, step='call')
-        r_call_names = list(x['call'] for x in sequence)
-        r_call_names.append(sentinel)
 
         states = None
 
+        r_call_names = _call_names(sequence, sentinel)
         r_dist = []
         r_states = []
+
         for idx, row in enumerate(self.model.infer_seq_iter(self.sess, psi, seq, cache=cache)):
             r_dist.append(self._create_distribution(row.distribution))
 
@@ -185,16 +205,15 @@ class BayesianPredictor:
                 for (key, entry) in zip(list(event_states(call)) + [None], dists):
                     dist = self._create_distribution(entry.distribution)
                     if key is None:
-                        new_states.append((sentinel, dist))
+                        new_states.append(Entry(sentinel, dist))
                     else:
-                        new_states.append((key, dist))
+                        new_states.append(Entry(key, dist))
 
 
             r_states.append(new_states)
 
-
-        for name, dist, r in zip(r_call_names, r_dist, r_states):
-            l = [(name, dist)]
-            l.extend(r)
-            yield l
+        for name, dist, states in zip(r_call_names, r_dist, r_states):
+            line = [Entry(name, dist)]
+            line.extend(states)
+            yield line
 
