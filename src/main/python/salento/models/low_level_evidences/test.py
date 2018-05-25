@@ -41,30 +41,6 @@ class MockModel:
             yield ARow(node=node, edge=edge, distribution=MockDist(), state=idx, cache_id=None)
 
 class TestInfer(unittest.TestCase):
-    def test_infer_states(self):
-        """
-        We are simply checking side effects, that is checking
-        what does 
-        """
-        pred = BayesianPredictor(model=MockModel(), sess=None)
-        pred._create_distribution = lambda x: x
-        seq = [
-            {'call': 'c1', 'states': ["c1_0", "c1_1"]},
-            {'call': 'c2', 'states': ["c2_0", "c2_1", "c2_2"]},
-            {'call': 'c3', 'states': []},
-        ]
-        for x, _ in zip(pred.infer_step_iter('psi', seq, step='state'), seq):
-            x.next_state()
-        self.assertEqual(pred.model.calls, [
-            # We compute the distribution iterator for the whole string
-            ('infer_seq_iter', [('START', 'V'), ('c1', 'H'), ('c2', 'H'), ('c3', 'H')], False),
-            ('infer_seq_iter', [('c1', 'V'), ('0#c1_0', 'H'), ('1#c1_1', 'H')], True),
-            ('infer_seq_iter', [('c1', 'V'), ('0#c1_0', 'H'), ('1#c1_1', 'H')], True),
-            ('infer_seq_iter', [('c2', 'V'), ('0#c2_0', 'H'), ('1#c2_1', 'H'), ('2#c2_2', 'H')], True),
-            ('infer_seq_iter', [('c2', 'V'), ('0#c2_0', 'H'), ('1#c2_1', 'H'), ('2#c2_2', 'H')], True),
-            ('infer_seq_iter', [('c3', 'V')], True),
-            ('infer_seq_iter', [('c3', 'V')], True),
-        ])
 
     def test_infer_states_ex(self):
         pred = BayesianPredictor(model=MockModel(), sess=None)

@@ -124,32 +124,6 @@ class BayesianPredictor:
         dist = self.model.infer_seq(self.sess, psi, seq, cache=cache)
         return self._create_distribution(dist)
 
-    def infer_step_iter(self, psi, sequence, step='call', cache=None):
-        seq = _sequence_to_graph(sequence=sequence, step='call')
-        states = []
-        for idx, row in enumerate(self.model.infer_seq_iter(self.sess, psi, seq, cache=cache)):
-            def next_state():
-                dist = self.model.infer_seq(self.sess, psi, _next_state(sequence[idx]), cache, resume=row)
-                return self._create_distribution(dist)
-            yield Row(
-                    call=row.node,
-                    states=states,
-                    distribution=self._create_distribution(row.distribution),
-                    next_state=next_state,
-                )
-
-            if step == 'state' and idx < len(sequence):
-                states = []
-                call = sequence[idx]
-                new_seq = list(_next_state(call))
-                dists = self.model.infer_seq_iter(self.sess, psi, new_seq, cache=cache, resume=row)
-                vocabs = self.model.config.decoder.vocab
-                for (key, row) in zip(list(event_states(call)) + [None], dists):
-                    if key is not None:
-                        states.append(row.distribution[vocabs[key]])
-            else:
-                states = []
-
     def _create_distribution(self, dist,):
         return VectorMapping(dist, self.model.config.decoder.chars, self.model.config.decoder.vocab)
 
