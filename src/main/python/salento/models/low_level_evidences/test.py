@@ -1,8 +1,80 @@
 #!/usr/bin/env python3
-from salento.models.low_level_evidences.infer import *
 
 import unittest
-from unittest.mock import patch, Mock
+import time
+
+################################################################################
+# data_reader.py
+from salento.models.low_level_evidences.data_reader import *
+
+def get_seq_paths_old(js, idx=0):
+    # The original algorithm for `get_seq_paths`:
+    if idx == len(js):
+       return [[('STOP', SIBLING_EDGE)]]
+    call = js[idx]['call']
+    pv = [[(call, CHILD_EDGE)] +
+          [('{}#{}'.format(i, state), SIBLING_EDGE) for i, state in enumerate(js[idx]['states'])] +
+          [('STOP', SIBLING_EDGE)]]
+    ph = [[(call, SIBLING_EDGE)] + path for path in get_seq_paths_old(js, idx + 1)]
+    return pv + ph
+
+class DataReaderExamples(unittest.TestCase):
+    js0 = []
+
+    js1 = [
+        {'call': 'call1', 'states': [1,2,3]},
+        {'call': 'call2', 'states': [2,3,4,11,22,33]},
+        {'call': 'call3', 'states': [5,6,7,8,9]},
+    ]
+
+    js2 = [
+        {'call': 'call1', 'states': [1,2,3]},
+        {'call': 'call2', 'states': [2,3,4,11,22,33]},
+        {'call': 'call3', 'states': [5,6,7,8,9]},
+        {'call': 'call1', 'states': [1,2,3]},
+        {'call': 'call2', 'states': [2,3,4,11,22,33]},
+        {'call': 'call3', 'states': [5,6,7,8,9]},
+        {'call': 'call1', 'states': []},
+        {'call': 'call2', 'states': [2,3,4,11,22,33]},
+        {'call': 'call3', 'states': [5,6,7,8,9]},
+        {'call': 'call1', 'states': [1,2,3]},
+        {'call': 'call2', 'states': [2,3,4,11,22,33]},
+        {'call': 'call3', 'states': [5,6,7,8,9]},
+        {'call': 'call1', 'states': [1,2,3]},
+        {'call': 'call2', 'states': [2,3,4,11,22,33]},
+        {'call': 'call3', 'states': [5,6,7,8,9]},
+    ]
+
+    def run_test(self, js, debug=False):
+        start = time.time()
+        res1 = get_seq_paths_old(js)
+        end = time.time()
+        if debug: print("get_seq_path_old", end - start)
+
+        start = time.time()
+        res2 = get_seq_paths(js)
+        end = time.time()
+        if debug: print("get_seq_path", end - start)
+
+        self.assertEqual(res1, res2)
+
+    def test_example1(self):
+        self.run_test(self.js1)
+
+    def test_example2(self):
+        self.run_test(self.js2)
+
+    def test_example0(self):
+        self.run_test(self.js0)
+
+    def test_benchmark(self):
+        self.run_test(self.js1 * 300, debug=True)
+
+
+################################################################################
+# infer.py
+from salento.models.low_level_evidences.infer import *
+
 class MockDist:
     def __init__(self, *args):
         self.args = args
