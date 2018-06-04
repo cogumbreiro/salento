@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
 
+# Copyright 2018 Georgia Tech
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import unittest
 import time
 
@@ -8,6 +22,7 @@ import time
 from salento.models.low_level_evidences.data_reader import *
 
 def get_seq_paths_old(js, idx=0):
+    # Copyright 2017 Rice University
     # The original algorithm for `get_seq_paths`:
     if idx == len(js):
        return [[('STOP', SIBLING_EDGE)]]
@@ -49,14 +64,15 @@ class DataReaderExamples(unittest.TestCase):
         start = time.time()
         res1 = get_seq_paths_old(js)
         end = time.time()
-        if debug: print("get_seq_path_old", end - start)
+        old_time = end - start
 
         start = time.time()
         res2 = get_seq_paths(js)
         end = time.time()
-        if debug: print("get_seq_path", end - start)
+        new_time = end - start
 
         self.assertEqual(res1, res2)
+        if debug: print("get_seq_path speedup:", "{:.2f}x".format(old_time/new_time))
 
     def test_example1(self):
         self.run_test(self.js1)
@@ -74,48 +90,57 @@ class DataReaderExamples(unittest.TestCase):
 ################################################################################
 # infer.py
 from salento.models.low_level_evidences.infer import *
+from salento.models.low_level_evidences import model
 
-class MockDist:
-    def __init__(self, *args):
-        self.args = args
+class DistMock:
+    def __init__(self, path):
+        # We record the arguments given upon creation
+        # This is currently used to record the path of the distribution
+        self.path = path
 
     def __getitem__(self, key):
+        # The probability return is not really used
         return 0.5
 
-class Vocabs:
+class VocabsMock:
+    # Returns an identifier given a vocab; the return value does not really
+    # matter
     def __getitem__(self, key):
         return 0
 
-class Decoder:
+class DecoderMock:
+    # The `BayesianPredictor` only accesses the vocabs.
     def __init__(self):
-        self.vocab = Vocabs()
+        self.vocab = VocabsMock()
 
-class Config:
+class ConfigMock:
+    # A config object with the minimal capabilities of the config obj
+    # used by `BayesianPredictor`.
     def __init__(self):
-        self.decoder = Decoder()
-
-ARow = namedtuple('Row', ['node', 'edge', 'distribution', 'state', 'cache_id'])
+        self.decoder = DecoderMock()
 
 class MockModel:
     def __init__(self):
+        # The calls are used to capture the side-effects of handling a Model.
         self.calls = []
-        self.config = Config()
+        # The config object is accessed directly by `BayesianPredictor`,
+        # hence the need to mock it
+        self.config = ConfigMock()
 
-    def infer_seq(self, sess, psi, seq, cache=None, resume=None):
-        seq = list(seq)
-        dist = {}
-        path = ""
-        for step in self.infer_seq_iter(sess, psi, seq, cache, resume):
-            dist = step.distribution
-            path = step.cache_id
-        return dist
+    # Use the original `Model.infer_seq` method:
+    infer_seq = Model.infer_seq
 
     def infer_seq_iter(self, sess, psi, seq, cache=None, resume=None):
+        # We fake the invocation of the model `infer_seq_iter` and just return
+        # an collection of `Row` objects.
         seq = list(seq)
+        # Log which calls were executed
         self.calls.append((seq, resume is not None))
         for idx, (node, edge) in enumerate(seq):
-            dist = MockDist(seq[:idx + 1])
-            yield ARow(node=node, edge=edge, distribution=dist, state=idx, cache_id=None)
+            # In each distribution, we record the path used to compute this
+            # distribution
+            dist = DistMock(seq[:idx + 1])
+            yield model.Row(node=node, edge=edge, distribution=dist, state=idx, cache_id=None)
 
 class TestInfer(unittest.TestCase):
 
@@ -132,7 +157,7 @@ class TestInfer(unittest.TestCase):
         # We convert the result into strings just so we can test it more easily
         # Each row pairs the term name with the sequence that yielded the given
         # distribution.
-        dists = list(list((n,d.args[0]) for (n,d) in x) for x in result)
+        dists = list(list((n,d.path) for (n,d) in x) for x in result)
         self.assertEqual(
             [
                 ('c1', [('START', 'V')]),

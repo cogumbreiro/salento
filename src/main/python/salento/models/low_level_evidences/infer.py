@@ -1,3 +1,4 @@
+# Copyright 2018 Georgia Tech
 # Copyright 2017 Rice University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,6 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+The infer module introduces `BayesianPredictor` an abstraction layer over
+`low_level_evidences.model.Model`, customized for inference. The main
+class introduced is `BayesianPredictor`, which is built using an instance
+of a `Model` and a TensorFlow session. The main role of this module is to
+translate from a sequence of terms into the internal representation that
+is consumed by TensorFlow.
+"""
 
 from __future__ import print_function
 import tensorflow as tf
@@ -59,6 +69,16 @@ def _call_names(terms, sentinel):
     yield sentinel
 
 class VectorMapping:
+    """
+    A `VectorMapping` exposes a vector of values as a map from terms to values.
+
+    Given:
+    1. a mapping from identifiers to terms (eg, a list of terms),
+    2. a mapping from terms to identifiers (what's the identifier of this term?), and
+    3. a vector from identifier to value (eg, a list of probabilities)
+
+    A `VectorMapping` acts as a map from terms to values (eg, probabilities).
+    """
     def __init__(self, data, id_to_term, term_to_id):
         self.data = data
         self.id_to_term = id_to_term
@@ -95,7 +115,44 @@ class VectorMapping:
         return repr(dict(self.items()))
 
 class BayesianPredictor:
+    """
+    The `BayesianPredictor` offers two main capabilities, both of which
+    take a call-sequence as an input and output an iterator to navigate the
+    distribution probabilities of the given call-sequence.
 
+    Method `Model.infer_call_iter` offers the simplest capability: it allows the
+    user to iterate over the distribution probability given a sequence of calls and
+    **ignores** the states of each term. The return value of `Model.infer_call_iter`
+    is an iterator of pairs that contain the term name (a string) and the
+    probability distribution.
+
+    For instance, given an instance `pred` of `BayesianPredictor`, we can yield
+    the probability of each term in in a sequence of calls `calls` with the
+    following code:
+
+    ```python
+    for (call, dist) in pred.distribution_call_iter(spec, calls, sentinel=self.END_MARKER):
+        yield dist[call]
+    ```
+
+    Method `Model.infer_state_iter` allows the user to iterate over the
+    distribution probability given a sequence of calls, **including** the states
+    of each term. The return value of `Model.infer_state_iter`
+    is an iterator of lists; each list pairs the term name (a string) with the
+    probability distribution. The first element of each list is the call name
+    and the distribution of the call name, the subsequent pairs consist of the
+    distribution probability for each state of that call name.
+
+    For instance, say that we want to "flatten" the output of
+    `Model.infer_state_iter`. In the following code we yield the probability
+    of each call name and of each state in a single iterator.
+
+    ```python
+    for row in pred.distribution_state_iter(spec, calls, sentinel=self.END_MARKER):
+        for (call, dist) in row:
+            yield dist[call]
+    ```
+    """
     @classmethod
     def load(cls, save, sess):
         """
