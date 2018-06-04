@@ -98,6 +98,11 @@ class BayesianPredictor:
 
     @classmethod
     def load(cls, save, sess):
+        """
+        Takes a path `save` where it locates the configuration file
+        `config.json` and then uses such a file load a `Model` for inference.
+        Afterwhich invokes the `restore` method.
+        """
         # load the saved config
         with open(os.path.join(save, 'config.json')) as f:
             config = read_config(json.load(f), chars_vocab=True)
@@ -106,12 +111,17 @@ class BayesianPredictor:
         return pred
 
     def __init__(self, model, sess):
+        """
+        `model` is an instance of `Model`.
+        `sess` is a TensorFlow session.
+        """
         self.model = model
         self.sess = sess
 
     def restore(self, save):
         """
-        Restore the saved model
+        Uses the current session to restore from the checkpoint given
+        in directory `save`.
         """
         self.sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver(tf.global_variables())
