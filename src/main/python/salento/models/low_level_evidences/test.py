@@ -20,6 +20,7 @@ import time
 ################################################################################
 # data_reader.py
 from salento.models.low_level_evidences.data_reader import *
+from typing import *
 
 def get_seq_paths_old(js, idx=0):
     # Copyright 2017 Rice University
@@ -34,7 +35,7 @@ def get_seq_paths_old(js, idx=0):
     return pv + ph
 
 class DataReaderExamples(unittest.TestCase):
-    js0 = []
+    js0 : List[Dict[str, Any]] = []
 
     js1 = [
         {'call': 'call1', 'states': [1,2,3]},

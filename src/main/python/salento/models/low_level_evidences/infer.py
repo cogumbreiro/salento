@@ -23,6 +23,8 @@ is consumed by TensorFlow.
 """
 
 from __future__ import print_function
+from typing import *
+
 import tensorflow as tf
 import numpy as np
 
@@ -35,9 +37,29 @@ from salento.models.low_level_evidences.utils import read_config
 
 from collections import namedtuple
 
-Row = namedtuple('Row', ['call', 'states', 'distribution', 'next_state'])
+# Types used in the class
+# A term is a string
+Term = str
+# The probability distribution of each term
+TermDist = Dict[Term, float]
+# The cache used in the model
+Cache = Dict[str, Any]
+# A JSON call-event
+Event = Dict[str, Any]
 
-Entry = namedtuple('Entry', ['term', 'distribution'])
+
+try:
+    class Entry(NamedTuple):
+        """
+        Pairs a term with a term distribution probability.
+        Can be used a `Tuple[Term, TermDist]`.
+        """
+        term: Term
+        distribution: TermDist
+
+except NameError:
+    # Python < 3.6
+    Entry = namedtuple('Entry', ['term', 'distribution'])
 
 def event_states(call):
     for i, elem in enumerate(call['states']):
@@ -52,7 +74,7 @@ def _next_state(event):
 def _next_call(event):
     return (event['call'], SIBLING_EDGE)
 
-def _sequence_to_graph(sequence, step='call'):
+def _sequence_to_graph(sequence:List[Event], step='call') -> List[Tuple[str,str]]:
     seq = [('START', CHILD_EDGE)]
     seq.extend(_next_call(call) for call in sequence[:-1])
     if len(sequence) > 0:
@@ -149,8 +171,8 @@ class BayesianPredictor:
 
     ```python
     for row in pred.distribution_state_iter(spec, calls, sentinel=self.END_MARKER):
-        for (call, dist) in row:
-            yield dist[call]
+        for (term, dist) in row:
+            yield dist[term]
     ```
     """
     @classmethod
@@ -200,7 +222,8 @@ class BayesianPredictor:
     def psi_from_evidence(self, js_evidences):
         return self.model.infer_psi(self.sess, js_evidences)
 
-    def infer_call_iter(self, psi, sequence, cache=None, sentinel=None):
+    def infer_call_iter(self, psi, sequence:List[Event], cache:Cache=None, sentinel:Optional[Term]=None) \
+            -> Iterable[Entry]:
         """
         Yields a sequence that pairs the next call sequence (terminated by the
         given from a sentinel) and the probability distribution.
@@ -213,7 +236,8 @@ class BayesianPredictor:
         return (Entry(n,d) for (n,d) in zip(r_call_names, r_dist))
 
 
-    def infer_state_iter(self, psi, sequence, cache=None, sentinel=None):
+    def infer_state_iter(self, psi, sequence:List[Event], cache:Cache=None, sentinel:Optional[Term]=None) \
+            -> Iterable[List[Entry]]:
         """
         Yields a sequence of sequences (which we call rows).
 
