@@ -73,7 +73,7 @@ class VectorMapping:
     A `VectorMapping` exposes a vector of values as a map from terms to values.
 
     Given:
-    1. a mapping from identifiers to terms (eg, a list of terms),
+    1. a list of terms (that acts as a map from integers (ids) to terms),
     2. a mapping from terms to identifiers (what's the identifier of this term?), and
     3. a vector from identifier to value (eg, a list of probabilities)
 
@@ -103,7 +103,7 @@ class VectorMapping:
             return default
 
     def items(self):
-        return ((self.id_to_term[i], self.data[i]) for i in range(len(self.data)))
+        return zip(self.id_to_term, self.data)
 
     def __getitem__(self, key):
         return self.data[self.term_to_id[key]]
