@@ -144,7 +144,7 @@ class MockModel:
 
 class TestInfer(unittest.TestCase):
 
-    def test_infer_states_ex(self):
+    def test_infer_states(self):
         pred = BayesianPredictor(model=MockModel(), sess=None)
         pred._create_distribution = lambda x: x
         seq = [
