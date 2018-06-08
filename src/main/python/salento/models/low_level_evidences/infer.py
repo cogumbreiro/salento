@@ -239,15 +239,30 @@ class BayesianPredictor:
     def infer_state_iter(self, psi, sequence:List[Event], cache:Cache=None, sentinel:Optional[Term]=None) \
             -> Iterable[List[Entry]]:
         """
-        Yields a sequence of sequences (which we call rows).
-
         The length of output sequence has one more element than the input
         sequence (the sentinel).
 
-        Each row pairs a call name and a distribution probability.
-        Each row contains the distribution probability of each state and
-        is terminated with a sentinel.
+        Each list of entries contains the distribution probability of the call
+        followed by each state, and is terminated with a sentinel in the case
+        where there is state. In particular, the sentinel call has no state
+        information, so it consists of one entry alone.
+        Additionally, each state is encoded with the following format: the
+        state position, the state separator `#`, and the state data.
 
+        That is: given a list of 2 events:
+
+            [{'call': 'foo', 'states': ['S']}, {'call': 'bar': 'states': []}]
+
+        the output will be a generator with three lists:
+
+            [('foo', {...}), ('0#S', {...}), (sentinel, {...})]
+            [('bar', {...}), (sentinel, {...})]
+            [(sentinel, {...})]
+
+        where each `{...}` is a distinct term distribution.
+
+        Since call `foo` has only one state at position 0 with data `S`,
+        therefore the encoded state becomes `0#S`.
         """
         sequence = list(sequence)
         seq = _sequence_to_graph(sequence=sequence, step='call')
