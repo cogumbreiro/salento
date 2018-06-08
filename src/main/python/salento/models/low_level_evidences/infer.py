@@ -225,8 +225,22 @@ class BayesianPredictor:
     def infer_call_iter(self, psi, sequence:List[Event], cache:Cache=None, sentinel:Optional[Term]=None) \
             -> Iterable[Entry]:
         """
-        Yields a sequence that pairs the next call sequence (terminated by the
-        given from a sentinel) and the probability distribution.
+        Yields a sequence that pairs each call with the term probability
+        distribution at that position. The return is a sequence of entries,
+        each of which pairs a call name with the distribution probability,
+        suffixed by the sentinel token.
+
+        That is, given a list of 2 events:
+
+            [{'call': 'foo', 'states': ['S']}, {'call': 'bar': 'states': []}]
+
+        The return will be a sequence of 3 entries:
+
+            ('foo', {...})
+            ('bar', {...})
+            (sentinel, {...})
+
+        where each `{...}` is a distinct distribution probability.
         """
         sequence = list(sequence) # cache the terms
         seq = _sequence_to_graph(sequence=sequence, step='call')
@@ -249,7 +263,7 @@ class BayesianPredictor:
         Additionally, each state is encoded with the following format: the
         state position, the state separator `#`, and the state data.
 
-        That is: given a list of 2 events:
+        That is given a list of 2 events:
 
             [{'call': 'foo', 'states': ['S']}, {'call': 'bar': 'states': []}]
 
