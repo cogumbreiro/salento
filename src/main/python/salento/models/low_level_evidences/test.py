@@ -20,6 +20,7 @@ import time
 ################################################################################
 # data_reader.py
 from salento.models.low_level_evidences.data_reader import *
+import typing
 from typing import *
 
 def get_seq_paths_old(js, idx=0):
@@ -35,15 +36,15 @@ def get_seq_paths_old(js, idx=0):
     return pv + ph
 
 class DataReaderExamples(unittest.TestCase):
-    js0 : List[Dict[str, Any]] = []
+    js0: List[Dict[str, Any]] = []
 
-    js1 = [
+    js1: List[Dict[str, Any]] = [
         {'call': 'call1', 'states': [1,2,3]},
         {'call': 'call2', 'states': [2,3,4,11,22,33]},
         {'call': 'call3', 'states': [5,6,7,8,9]},
     ]
 
-    js2 = [
+    js2: List[Dict[str, Any]] = [
         {'call': 'call1', 'states': [1,2,3]},
         {'call': 'call2', 'states': [2,3,4,11,22,33]},
         {'call': 'call3', 'states': [5,6,7,8,9]},
@@ -61,7 +62,7 @@ class DataReaderExamples(unittest.TestCase):
         {'call': 'call3', 'states': [5,6,7,8,9]},
     ]
 
-    def run_test(self, js, debug=False):
+    def run_test(self, js:List[Dict[str,Any]], debug:bool=False) -> None:
         start = time.time()
         res1 = get_seq_paths_old(js)
         end = time.time()
@@ -75,16 +76,16 @@ class DataReaderExamples(unittest.TestCase):
         self.assertEqual(res1, res2)
         if debug: print("get_seq_path speedup:", "{:.2f}x".format(old_time/new_time))
 
-    def test_example1(self):
+    def test_example1(self) -> None:
         self.run_test(self.js1)
 
-    def test_example2(self):
+    def test_example2(self) -> None:
         self.run_test(self.js2)
 
-    def test_example0(self):
+    def test_example0(self) -> None:
         self.run_test(self.js0)
 
-    def test_benchmark(self):
+    def test_benchmark(self) -> None:
         self.run_test(self.js1 * 300, debug=True)
 
 
@@ -145,15 +146,15 @@ class MockModel:
 
 class TestInfer(unittest.TestCase):
 
-    def test_infer_states(self):
-        pred = BayesianPredictor(model=MockModel(), sess=None)
-        pred._create_distribution = lambda x: x
+    def test_infer_states(self) -> None:
+        pred = BayesianPredictor(model=typing.cast(Model, MockModel()), sess=None)
+        pred._create_distribution = lambda x: x # type: ignore # Silent mypy
         seq = [
             {'call': 'c1', 'states': ["c1_0", "c1_1"]},
             {'call': 'c2', 'states': []},
             {'call': 'c3', 'states': ["c3_0", "c3_1", "c3_2"]},
         ]
-        result = list(pred.infer_state_iter('psi', seq))
+        result = list(pred.infer_state_iter('psi', seq, '$END'))
         self.assertEqual(len(seq) + 1, len(result))
         # We convert the result into strings just so we can test it more easily
         # Each row pairs the term name with the sequence that yielded the given
@@ -165,7 +166,7 @@ class TestInfer(unittest.TestCase):
                 ('0#c1_0', [('c1', 'V')]), # state 0
                 ('1#c1_1', [('c1', 'V'), ('0#c1_0', 'H')]), # state 1
                 # The sentinel None marks the end of the states
-                (None, [('c1', 'V'), ('0#c1_0', 'H'), ('1#c1_1', 'H')]), # end of states
+                ('$END', [('c1', 'V'), ('0#c1_0', 'H'), ('1#c1_1', 'H')]), # end of states
             ],
             dists[0]
         )
@@ -173,7 +174,7 @@ class TestInfer(unittest.TestCase):
         self.assertEqual(
             [
                 ('c2', [('START', 'V'), ('c1', 'H')]),
-                (None, [('c2', 'V')]), # End of states
+                ('$END', [('c2', 'V')]), # End of states
             ],
             dists[1]
         )
@@ -184,7 +185,7 @@ class TestInfer(unittest.TestCase):
                 ('0#c3_0', [('c3', 'V')]),
                 ('1#c3_1', [('c3', 'V'), ('0#c3_0', 'H')]),
                 ('2#c3_2', [('c3', 'V'), ('0#c3_0', 'H'), ('1#c3_1', 'H')]),
-                (None, [('c3', 'V'), ('0#c3_0', 'H'), ('1#c3_1', 'H'), ('2#c3_2', 'H')]),
+                ('$END', [('c3', 'V'), ('0#c3_0', 'H'), ('1#c3_1', 'H'), ('2#c3_2', 'H')]),
             ],
             dists[2]
         )
@@ -193,13 +194,13 @@ class TestInfer(unittest.TestCase):
         # Notice how the sentinel term has no state-information.
         self.assertEqual(
             [
-                (None, [('START', 'V'), ('c1', 'H'), ('c2', 'H'), ('c3', 'H')])
+                ('$END', [('START', 'V'), ('c1', 'H'), ('c2', 'H'), ('c3', 'H')])
             ],
             dists[3]
         )
 
         # We ensure that the side-effects are sound:
-        self.assertEqual(pred.model.calls, [
+        self.assertEqual(typing.cast(MockModel, pred.model).calls, [
             # The distribution of each call
             ([('START', 'V'), ('c1', 'H'), ('c2', 'H'), ('c3', 'H')], False),
             # The distribution of each state for the 0-th call

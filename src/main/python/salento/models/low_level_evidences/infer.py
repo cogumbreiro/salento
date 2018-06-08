@@ -31,6 +31,8 @@ import numpy as np
 import os
 import json
 
+from salento.models.low_level_evidences import model
+
 from salento.models.low_level_evidences.model import Model
 from salento.models.low_level_evidences.utils import CHILD_EDGE, SIBLING_EDGE
 from salento.models.low_level_evidences.utils import read_config
@@ -61,17 +63,17 @@ except NameError:
     # Python < 3.6
     Entry = namedtuple('Entry', ['term', 'distribution'])
 
-def event_states(call):
+def event_states(call:Event) -> Iterable[Term]:
     for i, elem in enumerate(call['states']):
         key = '{}#{}'.format(i, elem)
         yield key
 
-def _next_state(event):
+def _next_state(event:Event) -> Iterable[Tuple[str,str]]:
     yield (event['call'], CHILD_EDGE)
     for key in event_states(event):
         yield (key, SIBLING_EDGE)
 
-def _next_call(event):
+def _next_call(event:Event) -> Tuple[str, str]:
     return (event['call'], SIBLING_EDGE)
 
 def _sequence_to_graph(sequence:List[Event], step='call') -> List[Tuple[str,str]]:
@@ -86,11 +88,13 @@ def _sequence_to_graph(sequence:List[Event], step='call') -> List[Tuple[str,str]
             raise ValueError('invalid step: {}'.format(step))
     return seq
 
-def _call_names(terms, sentinel):
+def _call_names(terms:List[Event], sentinel:Term) -> Iterable[Term]:
     yield from (x['call'] for x in terms)
     yield sentinel
 
-class VectorMapping:
+T = TypeVar('T')
+
+class VectorMapping(Dict[T,float]):
     """
     A `VectorMapping` exposes a vector of values as a map from terms to values.
 
@@ -101,7 +105,7 @@ class VectorMapping:
 
     A `VectorMapping` acts as a map from terms to values (eg, probabilities).
     """
-    def __init__(self, data, id_to_term, term_to_id):
+    def __init__(self, data:List[float], id_to_term:List[T], term_to_id:Dict[T,int]) -> None:
         self.data = data
         self.id_to_term = id_to_term
         self.term_to_id = term_to_id
@@ -135,6 +139,10 @@ class VectorMapping:
 
     def __repr__(self):
         return repr(dict(self.items()))
+
+def iter_append(elems:Iterable[T], elem:T) -> Iterable[T]:
+    yield from elems
+    yield elem
 
 class BayesianPredictor:
     """
@@ -176,7 +184,7 @@ class BayesianPredictor:
     ```
     """
     @classmethod
-    def load(cls, save, sess):
+    def load(cls:Type['BayesianPredictor'], save:str, sess:tf.Session):
         """
         Takes a path `save` where it locates the configuration file
         `config.json` and then uses such a file load a `Model` for inference.
@@ -189,7 +197,7 @@ class BayesianPredictor:
         pred.restore(save)
         return pred
 
-    def __init__(self, model, sess):
+    def __init__(self, model:Model, sess:tf.Session) -> None:
         """
         `model` is an instance of `Model`.
         `sess` is a TensorFlow session.
@@ -197,7 +205,7 @@ class BayesianPredictor:
         self.model = model
         self.sess = sess
 
-    def restore(self, save):
+    def restore(self, save:str):
         """
         Uses the current session to restore from the checkpoint given
         in directory `save`.
@@ -208,12 +216,12 @@ class BayesianPredictor:
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
     # step can be 'call' or 'state', depending on if you are looking for distribution over the next call/state
-    def infer_step(self, psi, sequence, step='call', cache=None):
+    def infer_step(self, psi, sequence:List[Event], step='call', cache=None):
         seq = _sequence_to_graph(sequence, step)
         dist = self.model.infer_seq(self.sess, psi, seq, cache=cache)
         return self._create_distribution(dist)
 
-    def _create_distribution(self, dist,):
+    def _create_distribution(self, dist:List[float]) -> TermDist:
         return VectorMapping(dist, self.model.config.decoder.chars, self.model.config.decoder.vocab)
 
     def psi_random(self):
@@ -222,7 +230,7 @@ class BayesianPredictor:
     def psi_from_evidence(self, js_evidences):
         return self.model.infer_psi(self.sess, js_evidences)
 
-    def infer_call_iter(self, psi, sequence:List[Event], cache:Cache=None, sentinel:Optional[Term]=None) \
+    def infer_call_iter(self, psi, sequence:List[Event], sentinel:Term, cache:Cache=None) \
             -> Iterable[Entry]:
         """
         Yields a sequence that pairs each call with the term probability
@@ -250,7 +258,7 @@ class BayesianPredictor:
         return (Entry(n,d) for (n,d) in zip(r_call_names, r_dist))
 
 
-    def infer_state_iter(self, psi, sequence:List[Event], cache:Cache=None, sentinel:Optional[Term]=None) \
+    def infer_state_iter(self, psi, sequence:List[Event], sentinel:Term, cache:Cache=None) \
             -> Iterable[List[Entry]]:
         """
         The length of output sequence has one more element than the input
@@ -296,7 +304,7 @@ class BayesianPredictor:
                 call = sequence[idx]
                 new_seq = list(_next_state(call))
                 dists = self.model.infer_seq_iter(self.sess, psi, new_seq, cache=cache, resume=row)
-                for (key, entry) in zip(list(event_states(call)) + [None], dists):
+                for (key, entry) in zip(iter_append(event_states(call), None), dists): #type: Tuple[Optional[str], model.Row]
                     dist = self._create_distribution(entry.distribution)
                     if key is None:
                         new_states.append(Entry(sentinel, dist))
