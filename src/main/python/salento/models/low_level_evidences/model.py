@@ -86,7 +86,7 @@ class Model():
         return psi
 
     def infer_seq(self, sess, psi, seq, cache=None, resume=None):
-        dist = {}
+        dist = np.array([])
         path = ""
         for step in self.infer_seq_iter(sess, psi, seq, cache, resume):
             dist = step.distribution
