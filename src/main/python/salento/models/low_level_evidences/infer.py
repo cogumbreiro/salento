@@ -115,6 +115,10 @@ class VectorMapping:
     def __repr__(self):
         return repr(dict(self.items()))
 
+    def get_max(self):
+        idx = np.argmax(self.data)
+        return (self.id_to_term[idx], self.data[idx])
+
 def iter_append(elems, elem):
     yield from elems
     yield elem

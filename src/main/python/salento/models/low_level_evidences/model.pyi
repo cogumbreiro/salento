@@ -7,7 +7,7 @@ from salento.models.low_level_evidences.architecture import BayesianEncoder, Bay
 class Row(NamedTuple):
     node: str
     edge: str
-    distribution: np.ndarray
+    distribution: List[float]
     state: Any
     cache_id: Optional[str]
 
