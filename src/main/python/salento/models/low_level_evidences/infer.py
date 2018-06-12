@@ -29,7 +29,6 @@ import numpy as np
 
 import os
 import json
-import argparse # we need argparse.Namespace for typing purposes
 
 from salento.models.low_level_evidences import model
 
@@ -168,7 +167,7 @@ class BayesianPredictor:
         """
         # load the saved config
         with open(os.path.join(save, 'config.json')) as f:
-            config:argparse.Namespace = read_config(json.load(f), chars_vocab=True)
+            config = read_config(json.load(f), chars_vocab=True)
         pred = cls(sess=sess, model=Model(config, True))
         pred.restore(save)
         return pred
