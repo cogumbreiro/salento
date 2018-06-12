@@ -23,13 +23,13 @@ is consumed by TensorFlow.
 """
 
 from __future__ import print_function
-from typing import *
 
 import tensorflow as tf
 import numpy as np
 
 import os
 import json
+import argparse # we need argparse.Namespace for typing purposes
 
 from salento.models.low_level_evidences import model
 
@@ -39,44 +39,22 @@ from salento.models.low_level_evidences.utils import read_config
 
 from collections import namedtuple
 
-# Types used in the class
-# A term is a string
-Term = str
-# The probability distribution of each term
-TermDist = Dict[Term, float]
-# The cache used in the model
-Cache = Dict[str, Any]
-# A JSON call-event
-Event = Dict[str, Any]
+Entry = namedtuple('Entry', ['term', 'distribution'])
 
-
-try:
-    class Entry(NamedTuple):
-        """
-        Pairs a term with a term distribution probability.
-        Can be used a `Tuple[Term, TermDist]`.
-        """
-        term: Term
-        distribution: TermDist
-
-except NameError:
-    # Python < 3.6
-    Entry = namedtuple('Entry', ['term', 'distribution'])
-
-def event_states(call:Event) -> Iterable[Term]:
+def event_states(call):
     for i, elem in enumerate(call['states']):
         key = '{}#{}'.format(i, elem)
         yield key
 
-def _next_state(event:Event) -> Iterable[Tuple[str,str]]:
+def _next_state(event):
     yield (event['call'], CHILD_EDGE)
     for key in event_states(event):
         yield (key, SIBLING_EDGE)
 
-def _next_call(event:Event) -> Tuple[str, str]:
+def _next_call(event):
     return (event['call'], SIBLING_EDGE)
 
-def _sequence_to_graph(sequence:List[Event], step='call') -> List[Tuple[str,str]]:
+def _sequence_to_graph(sequence, step='call'):
     seq = [('START', CHILD_EDGE)]
     seq.extend(_next_call(call) for call in sequence[:-1])
     if len(sequence) > 0:
@@ -88,13 +66,11 @@ def _sequence_to_graph(sequence:List[Event], step='call') -> List[Tuple[str,str]
             raise ValueError('invalid step: {}'.format(step))
     return seq
 
-def _call_names(terms:List[Event], sentinel:Term) -> Iterable[Term]:
+def _call_names(terms, sentinel):
     yield from (x['call'] for x in terms)
     yield sentinel
 
-T = TypeVar('T')
-
-class VectorMapping(Dict[T,float]):
+class VectorMapping:
     """
     A `VectorMapping` exposes a vector of values as a map from terms to values.
 
@@ -105,7 +81,7 @@ class VectorMapping(Dict[T,float]):
 
     A `VectorMapping` acts as a map from terms to values (eg, probabilities).
     """
-    def __init__(self, data:List[float], id_to_term:List[T], term_to_id:Dict[T,int]) -> None:
+    def __init__(self, data, id_to_term, term_to_id):
         self.data = data
         self.id_to_term = id_to_term
         self.term_to_id = term_to_id
@@ -140,7 +116,7 @@ class VectorMapping(Dict[T,float]):
     def __repr__(self):
         return repr(dict(self.items()))
 
-def iter_append(elems:Iterable[T], elem:T) -> Iterable[T]:
+def iter_append(elems, elem):
     yield from elems
     yield elem
 
@@ -184,7 +160,7 @@ class BayesianPredictor:
     ```
     """
     @classmethod
-    def load(cls:Type['BayesianPredictor'], save:str, sess:tf.Session):
+    def load(cls, save, sess):
         """
         Takes a path `save` where it locates the configuration file
         `config.json` and then uses such a file load a `Model` for inference.
@@ -192,12 +168,12 @@ class BayesianPredictor:
         """
         # load the saved config
         with open(os.path.join(save, 'config.json')) as f:
-            config = read_config(json.load(f), chars_vocab=True)
+            config:argparse.Namespace = read_config(json.load(f), chars_vocab=True)
         pred = cls(sess=sess, model=Model(config, True))
         pred.restore(save)
         return pred
 
-    def __init__(self, model:Model, sess:tf.Session) -> None:
+    def __init__(self, model, sess):
         """
         `model` is an instance of `Model`.
         `sess` is a TensorFlow session.
@@ -205,7 +181,7 @@ class BayesianPredictor:
         self.model = model
         self.sess = sess
 
-    def restore(self, save:str):
+    def restore(self, save):
         """
         Uses the current session to restore from the checkpoint given
         in directory `save`.
@@ -216,12 +192,12 @@ class BayesianPredictor:
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
     # step can be 'call' or 'state', depending on if you are looking for distribution over the next call/state
-    def infer_step(self, psi, sequence:List[Event], step='call', cache=None):
+    def infer_step(self, psi, sequence, step='call', cache=None):
         seq = _sequence_to_graph(sequence, step)
         dist = self.model.infer_seq(self.sess, psi, seq, cache=cache)
         return self._create_distribution(dist)
 
-    def _create_distribution(self, dist:List[float]) -> TermDist:
+    def _create_distribution(self, dist):
         return VectorMapping(dist, self.model.config.decoder.chars, self.model.config.decoder.vocab)
 
     def psi_random(self):
@@ -230,8 +206,7 @@ class BayesianPredictor:
     def psi_from_evidence(self, js_evidences):
         return self.model.infer_psi(self.sess, js_evidences)
 
-    def infer_call_iter(self, psi, sequence:List[Event], sentinel:Term, cache:Cache=None) \
-            -> Iterable[Entry]:
+    def infer_call_iter(self, psi, sequence, sentinel, cache=None):
         """
         Yields a sequence that pairs each call with the term probability
         distribution at that position. The return is a sequence of entries,
@@ -258,8 +233,7 @@ class BayesianPredictor:
         return (Entry(n,d) for (n,d) in zip(r_call_names, r_dist))
 
 
-    def infer_state_iter(self, psi, sequence:List[Event], sentinel:Term, cache:Cache=None) \
-            -> Iterable[List[Entry]]:
+    def infer_state_iter(self, psi, sequence, sentinel, cache=None):
         """
         The length of output sequence has one more element than the input
         sequence (the sentinel).

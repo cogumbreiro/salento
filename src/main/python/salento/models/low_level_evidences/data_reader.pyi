@@ -1,0 +1,6 @@
+from typing import *
+
+LOADERS: Dict[str, Callable[[str], IO]]
+
+def smart_open(filename:str, *args:Any, **kwargs:Any) -> IO: ...
+def get_seq_paths(js:Dict[str,Any]) -> List[Tuple[str,str]]: ...
