@@ -18,7 +18,7 @@ import numpy as np
 from collections import namedtuple
 
 from salento.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder
-from salento.models.low_level_evidences.data_reader import CHILD_EDGE, SIBLING_EDGE
+from salento.models.low_level_evidences.utils import CHILD_EDGE, SIBLING_EDGE
 
 Row = namedtuple('Row', ['node', 'edge', 'distribution', 'state', 'cache_id'])
 

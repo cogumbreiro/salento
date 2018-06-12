@@ -19,11 +19,15 @@ import time
 
 ################################################################################
 # data_reader.py
+import tensorflow as tf
+from salento.models.low_level_evidences.util import CHILD_EDGE, SIBLING_EDGE
+
 from salento.models.low_level_evidences.data_reader import *
+from salento.models.low_level_evidences.model import Model
 import typing
 from typing import *
 
-def get_seq_paths_old(js, idx=0):
+def get_seq_paths_old(js:List[Dict[str,Any]], idx:int=0) -> List[List[Tuple[str,str]]]:
     # Copyright 2017 Rice University
     # The original algorithm for `get_seq_paths`:
     if idx == len(js):
@@ -95,34 +99,35 @@ from salento.models.low_level_evidences.infer import *
 from salento.models.low_level_evidences import model
 
 class DistMock:
-    def __init__(self, path):
+    def __init__(self, path:List[Tuple[str,str]]) -> None:
         # We record the arguments given upon creation
         # This is currently used to record the path of the distribution
         self.path = path
 
-    def __getitem__(self, key):
+    def __getitem__(self, key:str) -> float:
         # The probability return is not really used
         return 0.5
 
 class VocabsMock:
     # Returns an identifier given a vocab; the return value does not really
     # matter
-    def __getitem__(self, key):
+    def __getitem__(self, key:str) -> int:
         return 0
 
 class DecoderMock:
     # The `BayesianPredictor` only accesses the vocabs.
-    def __init__(self):
+    def __init__(self) -> None:
         self.vocab = VocabsMock()
 
 class ConfigMock:
     # A config object with the minimal capabilities of the config obj
     # used by `BayesianPredictor`.
-    def __init__(self):
+    def __init__(self) -> None:
         self.decoder = DecoderMock()
 
 class MockModel:
-    def __init__(self):
+    calls: List[Tuple[List[Tuple[str,str]], bool]]
+    def __init__(self) -> None:
         # The calls are used to capture the side-effects of handling a Model.
         self.calls = []
         # The config object is accessed directly by `BayesianPredictor`,
@@ -132,16 +137,17 @@ class MockModel:
     # Use the original `Model.infer_seq` method:
     infer_seq = Model.infer_seq
 
-    def infer_seq_iter(self, sess, psi, seq, cache=None, resume=None):
+    def infer_seq_iter(self, sess:tf.Session, psi:Any, seq:Iterable[Tuple[str,str]], cache:Optional[Dict[str,Any]]=None, resume:Optional[model.Row]=None) \
+            -> Iterable[model.Row]:
         # We fake the invocation of the model `infer_seq_iter` and just return
         # an collection of `Row` objects.
-        seq = list(seq)
+        a_seq = list(seq)
         # Log which calls were executed
-        self.calls.append((seq, resume is not None))
-        for idx, (node, edge) in enumerate(seq):
+        self.calls.append((a_seq, resume is not None))
+        for idx, (node, edge) in enumerate(a_seq):
             # In each distribution, we record the path used to compute this
             # distribution
-            dist = DistMock(seq[:idx + 1])
+            dist = DistMock(a_seq[:idx + 1])
             yield model.Row(node=node, edge=edge, distribution=dist, state=idx, cache_id=None)
 
 class TestInfer(unittest.TestCase):
@@ -154,12 +160,12 @@ class TestInfer(unittest.TestCase):
             {'call': 'c2', 'states': []},
             {'call': 'c3', 'states': ["c3_0", "c3_1", "c3_2"]},
         ]
-        result = list(pred.infer_state_iter('psi', seq, '$END'))
+        result:List[List[Entry]] = list(pred.infer_state_iter('psi', seq, '$END'))
         self.assertEqual(len(seq) + 1, len(result))
         # We convert the result into strings just so we can test it more easily
         # Each row pairs the term name with the sequence that yielded the given
         # distribution.
-        dists = list(list((n,d.path) for (n,d) in x) for x in result)
+        dists = list(list((n,cast(DistMock, d).path) for (n,d) in x) for x in result)
         self.assertEqual(
             [
                 ('c1', [('START', 'V')]),

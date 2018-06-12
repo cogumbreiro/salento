@@ -2,15 +2,24 @@ from typing import *
 
 import tensorflow as tf
 import numpy as np
+from salento.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder
 
 class Row(NamedTuple):
     node: str
     edge: str
     distribution: np.ndarray
     state: Any
-    cache_id: str
+    cache_id: Optional[str]
 
 class Model:
+    encoder: BayesianEncoder
+    decoder: BayesianDecoder
+    loss: Any
+    evidence_loss: Any
+    latent_loss: Any
+    train_op: Any
+    gen_loss: Any
+    targets: Any
 
     def __init__(self, config:Any, infer:bool=False) -> None: ...
 
